@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   if (keyword) params.push(`BSNS_SITE_NM=${encodeURIComponent(keyword)}`);
   if (city)    params.push(`SITE_ADDR_RD=${encodeURIComponent(city)}`);
   if (biz)     params.push(`BSNS_SITE_CLSFC_NM=${encodeURIComponent(biz)}`);
-  if (pet)     params.push(`PET_MNGT_YN=${pet}`);
+  if (pet)     params.push(`PET_OUTIN_YN=${pet}`);
   if (params.length) url += "?" + params.join("&");
 
   try {
@@ -27,15 +27,21 @@ export default async function handler(req, res) {
     const data = await response.json();
     const root = data?.I1200;
 
-    if (!root) return res.status(502).json({ error: "API 응답 형식 오류" });
+    if (!root) return res.status(502).json({ error: "API 응답 형식 오류", raw: data });
     if (root.RESULT?.CODE !== "INFO-000") {
       return res.status(400).json({ error: root.RESULT?.MESSAGE || "조회 실패" });
     }
 
+    const rows = root.row || [];
+
+    // 실제 필드명 파악용: 첫 번째 row의 키 목록도 반환
+    const keys = rows.length > 0 ? Object.keys(rows[0]) : [];
+
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.status(200).json({
       total: parseInt(root.total_count) || 0,
-      rows: root.row || [],
+      rows,
+      keys, // 디버그용 필드명 목록
     });
   } catch (err) {
     res.status(500).json({ error: "서버 오류: " + err.message });
