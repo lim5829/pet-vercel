@@ -226,12 +226,24 @@
     if(petVal)p.append('pet',petVal);
 
     try{
-      // 같은 도메인의 Vercel Serverless Function 호출
       const res=await fetch(`/api/restaurants?${p}`);
       if(!res.ok){const e=await res.json();throw new Error(e.error||res.statusText);}
-      const {total,rows}=await res.json();
+      const json=await res.json();
+      let {total,rows,keys}=json;
+
+      // 실제 필드명 콘솔 출력 (디버그)
+      if(keys&&keys.length) console.log('📋 API 필드명:', keys);
+      if(rows&&rows.length) console.log('📦 첫번째 row 샘플:', rows[0]);
+
+      const petField = 'PET_OUTIN_YN';
+
+      // 클라이언트 사이드 pet 필터링
+      if(petVal&&rows){
+        rows=rows.filter(r=>(r[petField]||'').toUpperCase()===petVal.toUpperCase());
+      }
+
       totalCount=total;
-      renderTable(rows);
+      renderTable(rows,petField);
       updateMeta(rows,page);
     }catch(e){
       document.getElementById('tbody').innerHTML=`
@@ -244,13 +256,13 @@
     }
   }
 
-  function renderTable(rows){
+  function renderTable(rows,petField='PET_OUTIN_YN'){
     if(!rows.length){
       document.getElementById('tbody').innerHTML=`<tr><td colspan="5"><div class="state-box"><div class="icon">🐾</div><p>검색 결과가 없습니다</p></div></td></tr>`;
       return;
     }
     document.getElementById('tbody').innerHTML=rows.map(r=>{
-      const pet=(r.PET_MNGT_YN||'').toUpperCase();
+      const pet=(r['PET_OUTIN_YN']||'').toUpperCase();
       const petBadge=pet==='Y'?`<span class="badge badge-pet">🐾 가능</span>`:pet==='N'?`<span class="badge badge-nopet">✕ 불가</span>`:`<span style="color:var(--muted);font-size:12px">—</span>`;
       return `<tr onclick='openModal(${JSON.stringify(JSON.stringify(r))})'>
         <td style="font-weight:500">${r.BSNS_SITE_NM||'—'}</td>
@@ -276,7 +288,7 @@
 
   function openModal(jsonStr){
     const r=JSON.parse(jsonStr);
-    const pet=(r.PET_MNGT_YN||'').toUpperCase();
+    const pet=(r.PET_OUTIN_YN||'').toUpperCase();
     document.getElementById('modalTitle').textContent=r.BSNS_SITE_NM||'업소 상세정보';
     document.getElementById('modalBody').innerHTML=[
       {l:'반려동물 출입',v:pet==='Y'?'🐾 출입 가능':pet==='N'?'✕ 출입 불가':'정보 없음',hi:pet==='Y'},
